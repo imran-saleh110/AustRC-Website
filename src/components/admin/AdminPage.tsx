@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Bell, Calendar, Trophy,
   GraduationCap, Users, Globe, LogOut,
   Loader2, Lock, ShieldAlert, Eye, EyeOff, Mail,
-  MessageSquareQuote,
+  MessageSquareQuote, Menu, X,
 } from 'lucide-react';
 
 import { auth } from '@/config/firebase';
@@ -43,7 +43,7 @@ const S = {
   sidebar: { width: 220, minWidth: 220, backgroundColor: '#030303', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column' as const, flexShrink: 0 },
   brand:   { padding: '16px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10 },
   nav:     { flex: 1, padding: '10px 10px', display: 'flex', flexDirection: 'column' as const, gap: 2 },
-  main:    { flex: 1, overflowY: 'auto' as const, backgroundColor: '#0a0a0a' },
+  main:    { flex: 1, minWidth: 0, overflowY: 'auto' as const, backgroundColor: '#0a0a0a' },
   content: { padding: '36px 40px', maxWidth: 1200 },
 };
 
@@ -186,6 +186,7 @@ export function AdminPage() {
   const [adminUser, setAdminUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
   const [tab, setTab]           = useState('dashboard');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -217,7 +218,13 @@ export function AdminPage() {
     if (!confirm('Log out of admin panel?')) return;
     await signOut(auth);
     setAdminUser(null);
+    setMobileNavOpen(false);
     setTab('dashboard');
+  };
+
+  const selectTab = (id: string) => {
+    setTab(id);
+    setMobileNavOpen(false);
   };
 
   if (checking) {
@@ -232,11 +239,120 @@ export function AdminPage() {
   if (!adminUser) return <LoginScreen />;
 
   return (
-    <div style={S.root}>
+    <div className="admin-shell" style={S.root}>
+      <style>{`
+        .admin-mobile-bar,
+        .admin-sidebar-backdrop {
+          display: none;
+        }
+
+        @media (min-width: 768px) {
+          .admin-sidebar .admin-mobile-menu-btn {
+            display: none;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .admin-shell {
+            display: block !important;
+            min-height: 100dvh !important;
+          }
+
+          .admin-mobile-bar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 56px;
+            padding: 10px 14px;
+            background: rgba(3, 3, 3, 0.96);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+          }
+
+          .admin-mobile-menu-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+            color: #fff;
+            cursor: pointer;
+          }
+
+          .admin-sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            z-index: 50;
+            width: min(82vw, 280px) !important;
+            min-width: 0 !important;
+            transform: translateX(-105%);
+            transition: transform 0.2s ease;
+            box-shadow: 18px 0 50px rgba(0,0,0,0.35);
+          }
+
+          .admin-sidebar.admin-sidebar-open {
+            transform: translateX(0);
+          }
+
+          .admin-sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 40;
+            display: block;
+            background: rgba(0,0,0,0.62);
+            border: 0;
+            padding: 0;
+          }
+
+          .admin-main {
+            min-height: calc(100dvh - 56px);
+            overflow: visible !important;
+          }
+
+          .admin-content {
+            width: 100%;
+            max-width: none !important;
+            padding: 20px 14px 32px !important;
+            box-sizing: border-box;
+          }
+        }
+      `}</style>
+
+      <header className="admin-mobile-bar">
+        <button
+          type="button"
+          className="admin-mobile-menu-btn"
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="Open admin navigation"
+        >
+          <Menu size={20} />
+        </button>
+        <div style={{ minWidth: 0, textAlign: 'center' }}>
+          <div style={{ color: '#fff', fontSize: 13, fontWeight: 800 }}>AUST Robotics</div>
+          <div style={{ color: '#2ECC71', fontSize: 9, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>Admin Console</div>
+        </div>
+        <div style={{ width: 38 }} />
+      </header>
+
+      {mobileNavOpen && (
+        <button
+          type="button"
+          className="admin-sidebar-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          aria-label="Close admin navigation"
+        />
+      )}
       {/* ── SIDEBAR ── */}
-      <aside style={S.sidebar}>
+      <aside className={`admin-sidebar${mobileNavOpen ? ' admin-sidebar-open' : ''}`} style={S.sidebar}>
         {/* brand */}
-        <div style={S.brand}>
+        <div style={{ ...S.brand, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
             <img src="https://ik.imagekit.io/mekt2pafz/Web%20site%20team/logo.png?updatedAt=1769056096931" alt="AUSTRC" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
@@ -244,12 +360,21 @@ export function AdminPage() {
             <div style={{ color: '#fff', fontSize: 13, fontWeight: 800, letterSpacing: '-0.3px' }}>AUST Robotics</div>
             <div style={{ color: '#2ECC71', fontSize: 9, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>Admin Console</div>
           </div>
+          </div>
+          <button
+            type="button"
+            className="admin-mobile-menu-btn"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close admin navigation"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* nav */}
         <nav style={S.nav}>
           {MENU.map(item => (
-            <NavBtn key={item.id} item={item} active={tab === item.id} onClick={() => setTab(item.id)} />
+            <NavBtn key={item.id} item={item} active={tab === item.id} onClick={() => selectTab(item.id)} />
           ))}
         </nav>
 
@@ -267,9 +392,9 @@ export function AdminPage() {
       </aside>
 
       {/* ── MAIN CONTENT ── */}
-      <main style={S.main}>
-        <div style={S.content}>
-          {tab === 'dashboard'       && <DashboardHome setActiveTab={setTab} />}
+      <main className="admin-main" style={S.main}>
+        <div className="admin-content" style={S.content}>
+          {tab === 'dashboard'       && <DashboardHome setActiveTab={selectTab} />}
           {tab === 'notices'         && <NoticesEditor />}
           {tab === 'events'          && <EventsEditor />}
           {tab === 'achievements'    && <AchievementsEditor />}
