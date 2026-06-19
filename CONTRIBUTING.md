@@ -26,18 +26,20 @@ The admin panel lives at **`/admin`** and is protected by Firebase Authenticatio
 ### Accessing the Admin Panel
 
 1. Go to `http://localhost:3001/admin` (local) or `https://austrc.com/admin` (production)
-2. Enter the admin password (set in `.env` → `VITE_ADMIN_PASSWORD`)
-3. The session is stored in `sessionStorage` — it expires when you close the browser tab
+2. Sign in with an authorized Firebase admin email and password
+3. Firebase Authentication keeps the session until logout or browser auth expiry
 
 > **Local:** Edit [`.env`](file://.env) in the project root:
 > ```
-> VITE_ADMIN_PASSWORD=your_password_here
+> VITE_ADMIN_EMAILS=webdev.austrc@gmail.com
 > ```
 
 > **Production (Vercel):** `.env` is git-ignored and NOT deployed. You must add the env var manually:
 > 1. Go to **Vercel Dashboard → Project → Settings → Environment Variables**
-> 2. Add `VITE_ADMIN_PASSWORD` = your password
+> 2. Add `VITE_ADMIN_EMAILS` = comma-separated admin emails, for example `webdev.austrc@gmail.com,another-admin@example.com`
 > 3. Redeploy the project
+>
+> Also enable Firebase Email/Password sign-in and create matching users in **Firebase Console -> Authentication -> Users**. Do not add or rename Firestore data fields for admin access.
 
 ### Image Upload in Admin Editors
 
@@ -53,20 +55,61 @@ Every image field in the admin panel supports **two modes**:
 
 ### Firestore Security Rules (Required)
 
-For the admin panel to write data, your Firestore Security Rules **must** allow writes. Paste this in **Firebase Console → Firestore → Rules → Edit Rules**:
+For the admin panel to write data, your Firestore Security Rules **must** allow writes only for authenticated admin emails. Keep the email list synced with `VITE_ADMIN_EMAILS`.
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'webdev.austrc@gmail.com'
+        ];
+    }
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
   }
 }
 ```
 
 > ⚠️ **Important:** Without these rules, the admin panel will show a "Permission Denied" error when trying to add, update, or delete records.
+
+> **Security note:** Never use `allow read, write: if true;` in production. That makes the database publicly writable.
+
+### Firebase Storage Rules (Required for Admin Uploads)
+
+Paste this in **Firebase Console -> Storage -> Rules** so only admins can upload images under `admin_uploads/`:
+
+```
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'webdev.austrc@gmail.com'
+        ];
+    }
+
+    match /admin_uploads/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
+```
 
 ### Admin Panel Structure
 

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
 import {
   LayoutDashboard, Bell, Calendar, Trophy,
   GraduationCap, Users, Globe, LogOut,
-  Loader2, Lock, ShieldAlert, Eye, EyeOff,
+  Loader2, Lock, ShieldAlert, Eye, EyeOff, Mail,
   MessageSquareQuote,
 } from 'lucide-react';
 
+import { auth } from '@/config/firebase';
 import { DashboardHome } from './DashboardHome';
 import { NoticesEditor } from './NoticesEditor';
 import { EventsEditor } from './EventsEditor';
@@ -16,8 +18,12 @@ import { SponsorsEditor } from './SponsorsEditor';
 import { CollaborationsEditor } from './CollaborationsEditor';
 import { TestimonialsEditor } from './TestimonialsEditor';
 
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'austrc@admin2026';
-const SESSION_KEY = 'austrc_admin_session';
+const DEFAULT_ADMIN_EMAILS = ['webdev.austrc@gmail.com'];
+const configuredAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '')
+  .split(',')
+  .map((email: string) => email.trim().toLowerCase())
+  .filter(Boolean);
+const ADMIN_EMAILS = configuredAdminEmails.length > 0 ? configuredAdminEmails : DEFAULT_ADMIN_EMAILS;
 
 const MENU = [
   { id: 'dashboard',       label: 'Dashboard',         icon: LayoutDashboard },
@@ -42,7 +48,14 @@ const S = {
 };
 
 /* ─────────────────────────────── login ──────────────────────────────── */
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
+function isAllowedAdmin(user: User | null) {
+  if (!user?.email) return false;
+  return ADMIN_EMAILS.includes(user.email.toLowerCase());
+}
+
+/* ------------------------------- login ------------------------------- */
+function LoginScreen() {
+  const [email, setEmail]     = useState('');
   const [pw, setPw]           = useState('');
   const [show, setShow]       = useState(false);
   const [busy, setBusy]       = useState(false);
@@ -51,14 +64,17 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true); setError('');
-    await new Promise(r => setTimeout(r, 500));
-    if (pw.trim() === ADMIN_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, 'true');
-      onLogin();
-    } else {
-      setError('Incorrect password. Access denied.');
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), pw);
+      if (!isAllowedAdmin(credential.user)) {
+        await signOut(auth);
+        setError('This email is not allowed to access the admin panel.');
+      }
+    } catch {
+      setError('Invalid admin email or password. Access denied.');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   return (
@@ -88,14 +104,32 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             )}
 
             <div>
+              <label style={{ display: 'block', color: '#555', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 6 }}>Admin Email</label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#444' }} />
+                <input
+                  type="email"
+                  autoFocus required value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  autoComplete="username"
+                  style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 14px 12px 44px', color: '#fff', fontSize: 14, outline: 'none' }}
+                  onFocus={e => (e.target.style.borderColor = '#2ECC71')}
+                  onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
+                />
+              </div>
+            </div>
+
+            <div>
               <label style={{ display: 'block', color: '#555', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 6 }}>Admin Password</label>
               <div style={{ position: 'relative' }}>
                 <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#444' }} />
                 <input
                   type={show ? 'text' : 'password'}
-                  autoFocus required value={pw}
+                  required value={pw}
                   onChange={e => setPw(e.target.value)}
                   placeholder="Enter admin password"
+                  autoComplete="current-password"
                   style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 44px', color: '#fff', fontSize: 14, outline: 'none' }}
                   onFocus={e => (e.target.style.borderColor = '#2ECC71')}
                   onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
@@ -149,13 +183,20 @@ function NavBtn({ item, active, onClick }: { item: typeof MENU[0]; active: boole
 
 /* ─────────────────────────────── main app ───────────────────────────── */
 export function AdminPage() {
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [adminUser, setAdminUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
   const [tab, setTab]           = useState('dashboard');
 
   useEffect(() => {
-    setLoggedIn(sessionStorage.getItem(SESSION_KEY) === 'true');
-    setChecking(false);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (isAllowedAdmin(user)) {
+        setAdminUser(user);
+      } else {
+        setAdminUser(null);
+        if (user) await signOut(auth);
+      }
+      setChecking(false);
+    });
 
     // Force dark mode on html element so editor Tailwind classes work correctly
     const html = document.documentElement;
@@ -168,13 +209,14 @@ export function AdminPage() {
       if (!hadDark && stored !== 'dark') {
         html.classList.remove('dark');
       }
+      unsubscribe();
     };
   }, []);
 
-  const logout = () => {
+  const logout = async () => {
     if (!confirm('Log out of admin panel?')) return;
-    sessionStorage.removeItem(SESSION_KEY);
-    setLoggedIn(false);
+    await signOut(auth);
+    setAdminUser(null);
     setTab('dashboard');
   };
 
@@ -187,7 +229,7 @@ export function AdminPage() {
     );
   }
 
-  if (!loggedIn) return <LoginScreen onLogin={() => setLoggedIn(true)} />;
+  if (!adminUser) return <LoginScreen />;
 
   return (
     <div style={S.root}>

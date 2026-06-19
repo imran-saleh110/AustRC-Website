@@ -102,7 +102,7 @@ export function NoticesEditor() {
             <ShieldAlert size={16} /> Firestore Permission Denied — update your security rules
           </div>
           <code style={{ fontSize: 11, color: '#4ade80', background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: '10px 14px', display: 'block', lineHeight: 1.8 }}>
-            {'rules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}'}
+            {'rules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function isAdmin() {\n      return request.auth != null && request.auth.token.email in [\'webdev.austrc@gmail.com\'];\n    }\n\n    match /{document=**} {\n      allow read: if true;\n      allow create, update, delete: if isAdmin();\n    }\n  }\n}'}
           </code>
         </div>
       )}
