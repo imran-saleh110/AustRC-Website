@@ -27,7 +27,7 @@ import { EventWebsitePage } from './components/activities/EventWebsitePage';
 import { EventDetailPage } from './components/activities/EventDetailPage';
 import { AchievementDetailPage } from './components/activities/AchievementDetailPage';
 
-// âœ… THIS IMPORT IS VITAL
+// ✅ THIS IMPORT IS VITAL
 import { ActivityDetailPage } from './components/activities/ActivityDetailPage';
 import { OtherActivitiesPage } from './components/activities/OtherActivitiesPage';
 import { OtherActivityDetailPage } from './components/activities/OtherActivityDetailPage';
@@ -35,6 +35,7 @@ import { CollaborationsPage } from './components/CollaborationsPage';
 import { SponsorsPage } from './components/SponsorsPage';
 import JourneyPage from './components/Journeypage';
 import { BatchRepresentativePage } from './components/BatchRepresentativePage';
+import { AdminPage } from './components/admin/AdminPage';
 
 
 // Scroll to top on every route change
@@ -46,7 +47,8 @@ function ScrollToTop() {
   return null;
 }
 
-function AppContent() {
+// Main site layout (with Navbar + Footer)
+function SiteLayout() {
   const location = useLocation();
   const t = useTokens();
   const isAboutPage = location.pathname === '/about';
@@ -57,69 +59,56 @@ function AppContent() {
       <CursorGlow />
       <Navbar />
       <div className="pb-20">
-      <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
 
-        <Route path="/activities" element={<ActivitiesPage />} />
-        <Route path="/activities/events" element={<EventsPage />} />
-        <Route path="/activities/events/:eventSlug" element={<EventDetailPage />} />
-        <Route path="/activities/achievements" element={<AchievementsPage />} />
-        <Route
-          path="/activities/social-activities"
-          element={<SocialActivitiesPage />}
-        />
-        <Route
-          path="/activities/educational-activities"
-          element={<EducationalActivitiesPage />}
-        />
-        <Route
-          path="/activities/event-website"
-          element={<EventWebsitePage />}
-        />
-        <Route path="/sponsors" element={<SponsorsPage />} />
-        <Route path="/collaborations" element={<CollaborationsPage />} />
-        <Route path="/activities/achievements/:achievementSlug" element={<AchievementDetailPage />} />
-        <Route path="/activities/social-activities" element={<SocialActivitiesPage />} />
-        <Route path="/activities/educational-activities" element={<EducationalActivitiesPage />} />
-        <Route path="/activities/event-website" element={<EventWebsitePage />} />
-        <Route path="/notices" element={<NoticesPage />} />
-        <Route path="/activities/other-activities" element={<OtherActivitiesPage />} />
-        <Route path="/activities/other-activities/:slug" element={<OtherActivityDetailPage />} />
-        {/* âœ… THE DYNAMIC ROUTE FOR DETAIL PAGES */}
-        <Route
-          path="/activity/:category/:id"
-          element={<ActivityDetailPage />}
-        />
+          <Route path="/activities" element={<ActivitiesPage />} />
+          <Route path="/activities/events" element={<EventsPage />} />
+          <Route path="/activities/events/:eventSlug" element={<EventDetailPage />} />
+          <Route path="/activities/achievements" element={<AchievementsPage />} />
+          <Route path="/activities/social-activities" element={<SocialActivitiesPage />} />
+          <Route path="/activities/educational-activities" element={<EducationalActivitiesPage />} />
+          <Route path="/activities/event-website" element={<EventWebsitePage />} />
+          <Route path="/sponsors" element={<SponsorsPage />} />
+          <Route path="/collaborations" element={<CollaborationsPage />} />
+          <Route path="/activities/achievements/:achievementSlug" element={<AchievementDetailPage />} />
+          <Route path="/activities/other-activities" element={<OtherActivitiesPage />} />
+          <Route path="/activities/other-activities/:slug" element={<OtherActivityDetailPage />} />
+          {/* ✅ THE DYNAMIC ROUTE FOR DETAIL PAGES */}
+          <Route path="/activity/:category/:id" element={<ActivityDetailPage />} />
 
-        <Route path="/about" element={<AboutPage />} />
-        <Route
-          path="/enthusiast-acquisition"
-          element={<EnthusiastAcquisitionPage />}
-        />
-        <Route path="/research-projects" element={<ResearchProjectsPage />} />
-        <Route
-          path="/research-projects/:projectSlug"
-          element={<ProjectDetailPage />}
-        />
-        {/* Hall of Fame Route */}
-        <Route path="/hall-of-fame" element={<HallOfFamePage />} />
-        {/* Dynamic Route for Governing Panel (Semesters) */}
-        <Route
-          path="/governing-panel/:panelId"
-          element={<GoverningPanelPage />}
-        />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/enthusiast-acquisition" element={<EnthusiastAcquisitionPage />} />
+          <Route path="/research-projects" element={<ResearchProjectsPage />} />
+          <Route path="/research-projects/:projectSlug" element={<ProjectDetailPage />} />
+          {/* Hall of Fame Route */}
+          <Route path="/hall-of-fame" element={<HallOfFamePage />} />
+          {/* Dynamic Route for Governing Panel (Semesters) */}
+          <Route path="/governing-panel/:panelId" element={<GoverningPanelPage />} />
 
-        <Route path="/developers" element={<DevelopersPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/get-app" element={<AppDownloadPage />} />
-        <Route path="/find-austrc-id" element={<FindAustrcIdPage />} />
-        <Route path="/website-journey" element={<JourneyPage />} />
-        <Route path="/batch-representative" element={<BatchRepresentativePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="/notices" element={<NoticesPage />} />
+          <Route path="/developers" element={<DevelopersPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/get-app" element={<AppDownloadPage />} />
+          <Route path="/find-austrc-id" element={<FindAustrcIdPage />} />
+          <Route path="/website-journey" element={<JourneyPage />} />
+          <Route path="/batch-representative" element={<BatchRepresentativePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
       {!isAboutPage && <Footer />}
     </div>
+  );
+}
+
+function AppContent() {
+  return (
+    <Routes>
+      {/* Admin panel — completely isolated, no Navbar/Footer */}
+      <Route path="/admin" element={<AdminPage />} />
+      {/* All other routes go through the main site layout */}
+      <Route path="/*" element={<SiteLayout />} />
+    </Routes>
   );
 }
 
